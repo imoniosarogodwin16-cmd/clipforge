@@ -1,0 +1,21 @@
+# Virtual Environment & Python cache
+__pycache__/
+*.py[cod]
+*$py.class
+*.env
+.venv/
+env/
+venv/
+
+# Media storage & AI models (Do NOT push to GitHub - files are large and local)
+uploads/
+output/
+models/
+*.part*
+*.ytdl
+
+# Logs & temp files
+*.log
+*.tmp
+.DS_Store
+Thumbs.db

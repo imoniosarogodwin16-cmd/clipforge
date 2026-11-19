@@ -1,0 +1,9 @@
+services:
+  - type: web
+    name: clipforge
+    runtime: docker
+    region: oregon
+    plan: standard
+    envVars:
+      - key: PORT
+        value: 8000

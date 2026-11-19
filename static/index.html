@@ -1,0 +1,250 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ClipForge • $0 AI Clipping Platform</title>
+  <link rel="stylesheet" href="/static/style.css?v=2.1">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+</head>
+<body>
+  <div class="app-container">
+    <!-- Top Header -->
+    <header class="navbar">
+      <div class="logo-group">
+        <div class="logo-icon">⚡</div>
+        <div>
+          <h1>ClipForge</h1>
+          <span class="tagline">AI Short-Form Clipping Studio</span>
+        </div>
+      </div>
+      <div class="status-badges">
+        <span class="badge badge-cpu">💻 CPU Mode (Low-Spec Friendly)</span>
+        <span class="badge badge-offline">🟢 Offline Capable</span>
+        <span class="badge badge-budget">💸 $0 Budget</span>
+      </div>
+    </header>
+
+    <!-- Main Content Grid -->
+    <div class="main-layout">
+      <!-- Left Column: Video Ingest & Library -->
+      <aside class="sidebar">
+        <div class="panel">
+          <div class="tab-header">
+            <button class="tab-btn active" id="tabUrlBtn" onclick="switchTab('url')">🔗 Paste URL</button>
+            <button class="tab-btn" id="tabUploadBtn" onclick="switchTab('upload')">📁 Offline Upload</button>
+          </div>
+
+          <!-- URL Ingest Form -->
+          <div class="tab-content" id="tabUrl">
+            <p class="section-desc">Paste any stream or podcast. AI automatically scans and generates viral clips!</p>
+            <div class="input-group">
+              <input type="text" id="videoUrlInput" placeholder="https://www.youtube.com/watch?v=..." />
+              <button class="primary-btn" id="downloadBtn" onclick="analyzeStreamUrl()">
+                <span>⚡ Auto-Find Viral Clips</span>
+              </button>
+            </div>
+
+            <div id="downloadProgressBarBox" class="progress-container hidden">
+              <div class="progress-stats">
+                <span id="downloadProgressTitle" class="progress-title">Fetching info...</span>
+                <span id="downloadProgressPct" class="progress-pct">0%</span>
+              </div>
+              <div class="progress-bar-bg">
+                <div id="downloadProgressBarFill" class="progress-bar-fill" style="width: 0%"></div>
+              </div>
+              <div class="progress-meta">
+                <span id="downloadProgressMb">0 MB / 0 MB</span>
+                <span id="downloadProgressSpeed">0 KB/s</span>
+                <span id="downloadProgressEta">ETA: --</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- File Upload Form -->
+          <div class="tab-content hidden" id="tabUpload">
+            <p class="section-desc">100% offline. Drag & drop any local video file.</p>
+            <div class="drop-zone" id="dropZone" onclick="document.getElementById('fileInput').click()">
+              <div class="drop-icon">📤</div>
+              <p>Drag video here or <strong>browse files</strong></p>
+              <span class="sub-text">MP4, MKV, MOV, WEBM</span>
+              <input type="file" id="fileInput" accept="video/*" style="display: none;" onchange="handleFileUpload(event)">
+            </div>
+            <div id="uploadSpinner" class="loader-box hidden">
+              <div class="spinner"></div>
+              <span>Importing local video...</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Video Library -->
+        <div class="panel video-library">
+          <h3>📂 Imported Videos (<span id="videoCount">0</span>)</h3>
+          <div id="videoList" class="video-list">
+            <div class="empty-state">No videos loaded yet.</div>
+          </div>
+        </div>
+      </aside>
+
+      <!-- Center & Right: Editor Studio -->
+      <main class="studio">
+        <!-- Video Preview Section -->
+        <div class="panel player-panel">
+          <div class="panel-header">
+            <h2 id="activeVideoTitle">Select or import a video to begin</h2>
+            <span class="video-duration" id="activeVideoDuration">--:--</span>
+          </div>
+
+          <div class="video-wrapper">
+            <video id="mainVideoPlayer" controls playsinline>
+              Your browser does not support the video tag.
+            </video>
+          </div>
+
+          <!-- Highlight Scanner Banner -->
+          <div class="highlight-bar">
+            <div class="highlight-info">
+              <h4>🎯 AI Audio Peak Detection</h4>
+              <p>Scans volume & laughter peaks to identify viral moments.</p>
+            </div>
+            <div class="highlight-actions" style="display: flex; gap: 0.5rem; align-items: center;">
+              <select id="highlightDurationTarget" style="padding: 0.45rem 0.6rem; border-radius: 6px; background: #141724; color: #fff; border: 1px solid var(--border-color); font-size: 0.8rem;">
+                <option value="35" selected>Target: 30s - 45s (Shorts)</option>
+                <option value="75">Target: 1m - 2m (Reels/TikTok)</option>
+                <option value="180">Target: 2m - 4m (Long Clips)</option>
+              </select>
+              <button class="accent-btn" id="scanHighlightsBtn" onclick="scanHighlights()" disabled>
+                <span>⚡ Re-Scan Peaks</span>
+              </button>
+            </div>
+          </div>
+
+          <div id="highlightsLoader" class="loader-box hidden">
+            <div class="spinner"></div>
+            <span>Analyzing audio waveforms and excitement peaks...</span>
+          </div>
+
+          <!-- Batch Generate Action Header -->
+          <div id="batchActionHeader" class="batch-bar hidden" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.8rem; padding: 0.6rem 0.9rem; background: rgba(124, 58, 237, 0.12); border: 1px solid rgba(124, 58, 237, 0.3); border-radius: 8px;">
+            <span style="font-size: 0.85rem; font-weight: 600; color: #c4b5fd;">✨ Found <span id="hlCountDisplay">0</span> viral highlights in this stream!</span>
+            <button class="accent-btn" id="batchGenerateBtn" onclick="batchGenerateAllHighlights()" style="font-size: 0.8rem; padding: 0.4rem 0.8rem;">
+              ⚡ Batch Generate All Clips (Queue Background)
+            </button>
+          </div>
+
+          <!-- Render Queue Status Box -->
+          <div id="renderQueueBox" class="queue-status-box hidden" style="margin-bottom: 1rem; padding: 0.8rem 1rem; background: #181d33; border: 1px solid #3b82f6; border-radius: 8px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
+              <span id="queueStatusTitle" style="font-weight: 600; font-size: 0.85rem; color: #60a5fa;">🎬 Background Rendering Queue</span>
+              <span id="queueStatusPct" style="font-size: 0.8rem; font-weight: 700; color: #93c5fd;">Processing...</span>
+            </div>
+            <div class="progress-bar-bg" style="height: 6px; background: rgba(255,255,255,0.1); border-radius: 4px; overflow: hidden;">
+              <div id="queueProgressBarFill" style="height: 100%; width: 0%; background: linear-gradient(90deg, #3b82f6, #8b5cf6); transition: width 0.3s;"></div>
+            </div>
+            <div id="queueStatusDetail" style="font-size: 0.75rem; color: #94a3b8; margin-top: 0.4rem;">Queued clips will appear in the gallery automatically.</div>
+          </div>
+
+          <!-- Detected Highlights Cards -->
+          <div id="highlightsContainer" class="highlights-grid hidden">
+            <!-- Cards populated via JS -->
+          </div>
+        </div>
+
+        <!-- Clip Settings & Export Controls -->
+        <div class="panel export-controls">
+          <h3>✂️ Clip Configuration (9:16 Vertical)</h3>
+          
+          <div class="controls-grid">
+            <!-- Time Trimming & Duration Controls -->
+            <div class="control-box full-width" style="grid-column: 1 / -1;">
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.4rem;">
+                <label style="margin: 0;">Clip Start & End Timing:</label>
+                <span id="clipDurationBadge" style="font-size: 0.78rem; font-weight: 700; color: #38bdf8; background: rgba(56, 189, 248, 0.12); padding: 0.2rem 0.5rem; border-radius: 4px;">⏱️ Duration: 30.0s</span>
+              </div>
+              <div style="display: flex; gap: 0.5rem; align-items: center;">
+                <div style="flex: 1;">
+                  <span style="font-size: 0.72rem; color: var(--text-muted);">Start Time:</span>
+                  <input type="text" id="startTimeInput" value="0.0" oninput="onTimingChange()" placeholder="0.0 or 01:30" />
+                </div>
+                <div style="flex: 1;">
+                  <span style="font-size: 0.72rem; color: var(--text-muted);">End Time:</span>
+                  <input type="text" id="endTimeInput" value="30.0" oninput="onTimingChange()" placeholder="30.0 or 02:00" />
+                </div>
+              </div>
+              <!-- Duration Presets & Quick Extend -->
+              <div style="display: flex; gap: 0.4rem; flex-wrap: wrap; margin-top: 0.6rem; align-items: center;">
+                <span style="font-size: 0.72rem; color: var(--text-muted); margin-right: 0.2rem;">Set Length:</span>
+                <button type="button" class="preset-pill" onclick="setClipDuration(30)">30s</button>
+                <button type="button" class="preset-pill" onclick="setClipDuration(60)">1 Min</button>
+                <button type="button" class="preset-pill" onclick="setClipDuration(120)">2 Mins</button>
+                <button type="button" class="preset-pill" onclick="setClipDuration(180)">3 Mins</button>
+                <button type="button" class="preset-pill" onclick="setClipDuration(240)">4 Mins</button>
+                <span style="font-size: 0.72rem; color: var(--text-muted); margin: 0 0.2rem 0 0.4rem;">Extend:</span>
+                <button type="button" class="preset-pill extend" onclick="extendClipDuration(30)">+30s</button>
+                <button type="button" class="preset-pill extend" onclick="extendClipDuration(60)">+1m</button>
+                <button type="button" class="preset-pill extend" onclick="extendClipDuration(120)">+2m</button>
+                <button type="button" class="preset-pill extend" onclick="extendClipDuration(240)">+4m</button>
+              </div>
+            </div>
+
+            <!-- Framing Style -->
+            <div class="control-box">
+              <label>Vertical Layout (9:16):</label>
+              <select id="layoutSelect">
+                <option value="blur_background" selected>✨ Blurred Background (Universal Best)</option>
+                <option value="center_crop">🔍 Center Crop</option>
+                <option value="split_screen">🎮 Split Screen (Cam Top + Game Bottom)</option>
+              </select>
+            </div>
+
+            <!-- Subtitle Styling -->
+            <div class="control-box">
+              <label>Animated Viral Captions:</label>
+              <div class="toggle-group">
+                <label class="switch">
+                  <input type="checkbox" id="subtitlesToggle" checked>
+                  <span class="slider round"></span>
+                </label>
+                <select id="subtitleColorSelect">
+                  <option value="yellow" selected>🟡 Yellow Highlight</option>
+                  <option value="green">🟢 Neon Green Highlight</option>
+                  <option value="cyan">🔵 Electric Cyan Highlight</option>
+                  <option value="pink">🟣 Hot Pink Highlight</option>
+                </select>
+              </div>
+            </div>
+          </div>
+
+          <div class="action-footer">
+            <button class="render-btn" id="generateClipBtn" onclick="generateClip()" disabled>
+              <span>🚀 Generate 9:16 Vertical Clip</span>
+            </button>
+          </div>
+
+          <div id="renderSpinner" class="loader-box hidden">
+            <div class="spinner"></div>
+            <div class="render-text-group">
+              <span id="renderStatusMsg">Processing clip... transcribing audio and rendering vertical 9:16 layout.</span>
+              <small>Optimized for CPU — usually takes 10 to 30 seconds.</small>
+            </div>
+          </div>
+        </div>
+
+        <!-- Rendered Clips Gallery -->
+        <div class="panel gallery-panel">
+          <div class="panel-header">
+            <h3>🎬 Ready-to-Post Clips</h3>
+            <button class="refresh-btn" onclick="loadClips()">🔄 Refresh</button>
+          </div>
+          <div id="clipsGallery" class="clips-gallery">
+            <div class="empty-state">No clips created yet. Generate one above!</div>
+          </div>
+        </div>
+      </main>
+    </div>
+  </div>
+
+  <script src="/static/app.js?v=2.1"></script>
+</body>
+</html>
