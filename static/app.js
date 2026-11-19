@@ -572,8 +572,8 @@ async function loadClips() {
 
     gallery.innerHTML = clips.map(c => `
       <div class="clip-card">
-        <video controls playsinline preload="metadata">
-          <source src="${c.url}" type="video/mp4">
+        <video controls playsinline preload="metadata" onerror="handleVideoMissing(this, '${c.filename}', '${escapeHtml(c.title || '')}')">
+          <source src="${c.url}" type="video/mp4" onerror="handleVideoMissing(this.parentElement, '${c.filename}', '${escapeHtml(c.title || '')}')">
         </video>
         <div class="clip-card-info">
           <div class="clip-card-title">${escapeHtml(c.title || c.filename)}</div>
@@ -737,6 +737,25 @@ function filterVaultClips() {
   renderVaultClips(filtered);
 }
 
+function handleVideoMissing(videoEl, clipId, title) {
+  if (!videoEl || videoEl.dataset.missingHandled) return;
+  videoEl.dataset.missingHandled = "true";
+
+  const placeholder = document.createElement("div");
+  placeholder.className = "video-offline-notice";
+  placeholder.innerHTML = `
+    <span style="font-size: 2.2rem; margin-bottom: 0.4rem;">💾</span>
+    <strong style="color: #f8fafc; font-size: 0.88rem; margin-bottom: 0.2rem;">Rendered on Local PC</strong>
+    <p style="font-size: 0.72rem; color: #94a3b8; margin: 0 0 0.6rem 0; line-height: 1.35; max-width: 240px;">
+      This clip was rendered on your laptop (<code>output/clip_${clipId}.mp4</code>).
+    </p>
+    <div style="background: rgba(56, 189, 248, 0.1); border: 1px solid rgba(56, 189, 248, 0.25); border-radius: 6px; padding: 0.4rem 0.6rem; font-size: 0.7rem; color: #38bdf8; max-width: 250px;">
+      💡 Tip: Generate new clips here on Cloud to save & play directly in Google Drive!
+    </div>
+  `;
+  videoEl.replaceWith(placeholder);
+}
+
 function renderVaultClips(clips) {
   const container = document.getElementById("vaultClipsGrid");
   const countEl = document.getElementById("vaultClipsCount");
@@ -751,8 +770,8 @@ function renderVaultClips(clips) {
 
   container.innerHTML = clips.map(c => `
     <div class="clip-card" id="vault-card-${c.id}" style="display: flex; flex-direction: column;">
-      <video controls playsinline preload="metadata">
-        <source src="${c.video_url}" type="video/mp4">
+      <video controls playsinline preload="metadata" onerror="handleVideoMissing(this, '${c.id}', '${escapeHtml(c.title)}')">
+        <source src="${c.video_url}" type="video/mp4" onerror="handleVideoMissing(this.parentElement, '${c.id}', '${escapeHtml(c.title)}')">
       </video>
       <div class="clip-card-info" style="flex: 1; display: flex; flex-direction: column;">
         <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 0.5rem;">
