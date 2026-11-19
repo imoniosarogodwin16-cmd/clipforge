@@ -1,6 +1,20 @@
 # ⚡ ClipForge — $0 AI Clipping Studio
 
-A high-performance, automated clipping platform built for creators. Designed to run **100% locally with zero subscription costs** and optimized for **standard CPUs without requiring an expensive GPU**.
+[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/imoniosarogodwin16-cmd/clipforge/blob/main/ClipForge_Cloud.ipynb)
+
+A high-performance, automated clipping platform built for creators. Designed to run **100% free with zero subscription costs** both locally on CPU and in the cloud on **free Google Colab GPUs**.
+
+---
+
+## ☁️ Run 24/7 in the Cloud (Free Google Colab GPU — Laptop Can Be Off!)
+
+Want to run ClipForge from your phone or while your laptop is completely powered off?
+
+1. Click the **[Open In Colab](https://colab.research.google.com/github/imoniosarogodwin16-cmd/clipforge/blob/main/ClipForge_Cloud.ipynb)** badge above.
+2. In Colab, click **Runtime** ➔ **Run all** (`Ctrl + F9`).
+3. Connect your Google Drive when prompted so all your clips and database are saved forever in your Drive.
+4. Click the public **Cloudflare HTTPS link** generated at the bottom.
+5. Your studio is live on Google Cloud with an **NVIDIA T4 GPU** and **13 GB RAM**!
 
 ---
 
