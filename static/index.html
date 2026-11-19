@@ -19,6 +19,10 @@
           <span class="tagline">AI Short-Form Clipping Studio</span>
         </div>
       </div>
+      <div class="nav-links" style="display: flex; gap: 0.5rem; margin-left: 2rem;">
+        <button class="nav-tab active" id="navStudioBtn" onclick="switchMainView('studio')">🎬 Studio</button>
+        <button class="nav-tab" id="navVaultBtn" onclick="switchMainView('vault')">📂 Clip Vault (<span id="vaultCount">14</span>)</button>
+      </div>
       <div class="status-badges">
         <span class="badge badge-cpu">💻 CPU Mode (Low-Spec Friendly)</span>
         <span class="badge badge-offline">🟢 Offline Capable</span>
@@ -26,8 +30,8 @@
       </div>
     </header>
 
-    <!-- Main Content Grid -->
-    <div class="main-layout">
+    <!-- Main Content Grid (Studio View) -->
+    <div class="main-layout" id="studioView">
       <!-- Left Column: Video Ingest & Library -->
       <aside class="sidebar">
         <div class="panel">
@@ -242,6 +246,74 @@
           </div>
         </div>
       </main>
+    </div>
+
+    <!-- Clip Vault View (Permanent Database & Multi-Stream Manager) -->
+    <div id="vaultView" class="vault-container hidden">
+      <!-- Vault Header & Search / Filter Controls -->
+      <div class="panel">
+        <div class="vault-top-row">
+          <div>
+            <h2 style="font-size: 1.25rem; font-weight: 700; margin-bottom: 0.25rem;">📂 Permanent Clip Vault</h2>
+            <p style="font-size: 0.8rem; color: var(--text-muted); margin: 0;">
+              Every clip, transcript, viral score, and caption is safely stored in the database. Never lost!
+            </p>
+          </div>
+          <div class="vault-search-group">
+            <input type="text" id="vaultSearchInput" placeholder="🔍 Search clips by title, tag, speech..." oninput="filterVaultClips()" />
+            <select id="vaultStreamFilter" onchange="onVaultStreamSelect()">
+              <option value="">All Streams & Videos</option>
+            </select>
+            <button class="refresh-btn" onclick="loadVaultData()">🔄 Refresh</button>
+          </div>
+        </div>
+
+        <!-- Active Stream Banner (With "Mine More Clips" Action) -->
+        <div id="vaultStreamBanner" class="vault-stream-banner hidden">
+          <div>
+            <h4 id="vaultBannerStreamTitle" style="margin: 0 0 0.25rem 0; font-size: 0.95rem; color: #fff;">Stream Title</h4>
+            <div style="display: flex; gap: 0.6rem; align-items: center;">
+              <span id="vaultBannerDuration" class="stream-meta-badge">⏱️ 0:00</span>
+              <span id="vaultBannerClipCount" style="font-size: 0.75rem; color: #cbd5e1;">0 Clips in Vault</span>
+            </div>
+          </div>
+          <div style="display: flex; gap: 0.5rem; align-items: center;">
+            <button class="accent-btn" id="mineMoreBtn" onclick="mineMoreClipsFromActiveStream()" style="font-size: 0.85rem; padding: 0.55rem 1rem;">
+              ⚡ Mine Next Viral Highlights From This Stream
+            </button>
+          </div>
+        </div>
+
+        <!-- AI Semantic Prompt Bar -->
+        <div class="ai-prompt-bar">
+          <span class="prompt-icon">🤖</span>
+          <div class="prompt-input-wrapper">
+            <input type="text" id="aiPromptSearchInput" placeholder="Natural Language Search: e.g. 'find the mission', 'car chase', 'funny fail', 'rage quit'..." onkeydown="if(event.key==='Enter') searchDialoguePrompt()" />
+            <button class="primary-btn" onclick="searchDialoguePrompt()" style="padding: 0.45rem 1rem; font-size: 0.82rem; white-space: nowrap;">
+              Find Moments
+            </button>
+          </div>
+        </div>
+
+        <div id="aiPromptLoader" class="loader-box hidden" style="margin-top: 0.8rem;">
+          <div class="spinner"></div>
+          <span>Scanning transcripts and dialogue waveforms for matching moments...</span>
+        </div>
+
+        <!-- AI Semantic Moments Results Grid -->
+        <div id="aiPromptResults" class="ai-results-grid hidden"></div>
+      </div>
+
+      <!-- Saved Clips Gallery Panel -->
+      <div class="panel">
+        <div class="panel-header" style="margin-bottom: 1rem;">
+          <h3 id="vaultClipsCountHeader">🎬 Preserved Clips (<span id="vaultClipsCount">0</span>)</h3>
+          <span style="font-size: 0.8rem; color: var(--text-muted);">Stored with full captions, hashtags, and viral scores</span>
+        </div>
+        <div id="vaultClipsGrid" class="vault-clips-grid">
+          <div class="empty-state">No clips found in vault.</div>
+        </div>
+      </div>
     </div>
   </div>
 

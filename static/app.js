@@ -4,6 +4,7 @@ let activeStreamUrl = null;
 document.addEventListener("DOMContentLoaded", () => {
   loadVideos();
   loadClips();
+  loadVaultData();
   setupDropZone();
 });
 
@@ -536,6 +537,7 @@ async function generateClip() {
 }
 
 function clipNextPart(endSec, durationSec, sourceUrl, sourceFile, prevTitle) {
+  switchMainView('studio');
   const nextStart = parseFloat(endSec);
   const nextEnd = nextStart + parseFloat(durationSec);
 
@@ -614,4 +616,348 @@ function formatSec(seconds) {
 function escapeHtml(str) {
   if (!str) return "";
   return str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+}
+
+// ==================== CLIP VAULT & SMART SEARCH ====================
+
+let allVaultClips = [];
+let allVaultStreams = [];
+let selectedVaultStreamId = "";
+
+function switchMainView(view) {
+  const studioView = document.getElementById("studioView");
+  const vaultView = document.getElementById("vaultView");
+  const studioBtn = document.getElementById("navStudioBtn");
+  const vaultBtn = document.getElementById("navVaultBtn");
+
+  if (view === "vault") {
+    studioView.classList.add("hidden");
+    vaultView.classList.remove("hidden");
+    vaultBtn.classList.add("active");
+    studioBtn.classList.remove("active");
+    loadVaultData();
+  } else {
+    vaultView.classList.add("hidden");
+    studioView.classList.remove("hidden");
+    studioBtn.classList.add("active");
+    vaultBtn.classList.remove("active");
+  }
+}
+
+async function loadVaultData() {
+  await Promise.all([loadVaultStreams(), loadVaultClips()]);
+}
+
+async function loadVaultStreams() {
+  try {
+    const res = await fetch("/api/vault/streams");
+    if (!res.ok) return;
+    allVaultStreams = await res.json();
+
+    const select = document.getElementById("vaultStreamFilter");
+    if (!select) return;
+
+    const currentVal = select.value;
+    select.innerHTML = `<option value="">All Streams & Videos (${allVaultStreams.length})</option>` +
+      allVaultStreams.map(s => `
+        <option value="${s.id}" ${s.id === currentVal ? "selected" : ""}>
+          ${escapeHtml(s.title || "Stream")} (${s.clip_count} clips)
+        </option>
+      `).join("");
+
+    updateVaultBanner();
+  } catch (err) {
+    console.error("Error loading vault streams:", err);
+  }
+}
+
+async function loadVaultClips() {
+  try {
+    const res = await fetch("/api/vault/clips");
+    if (!res.ok) return;
+    allVaultClips = await res.json();
+
+    // Update navbar count badge
+    const badge = document.getElementById("vaultCount");
+    if (badge) badge.textContent = allVaultClips.length;
+
+    filterVaultClips();
+  } catch (err) {
+    console.error("Error loading vault clips:", err);
+  }
+}
+
+function onVaultStreamSelect() {
+  const select = document.getElementById("vaultStreamFilter");
+  selectedVaultStreamId = select.value;
+  updateVaultBanner();
+  filterVaultClips();
+}
+
+function updateVaultBanner() {
+  const banner = document.getElementById("vaultStreamBanner");
+  if (!banner) return;
+
+  const targetStream = selectedVaultStreamId 
+    ? allVaultStreams.find(s => s.id === selectedVaultStreamId)
+    : (allVaultStreams.length > 0 ? allVaultStreams[0] : null);
+
+  if (!targetStream) {
+    banner.classList.add("hidden");
+    return;
+  }
+
+  banner.classList.remove("hidden");
+  document.getElementById("vaultBannerStreamTitle").textContent = targetStream.title || "GTA 6 Stream Archive";
+  document.getElementById("vaultBannerDuration").textContent = `⏱️ ${formatSec(targetStream.duration || 0)}`;
+  document.getElementById("vaultBannerClipCount").textContent = `${targetStream.clip_count || 0} Clips in Vault`;
+}
+
+function filterVaultClips() {
+  const q = (document.getElementById("vaultSearchInput")?.value || "").toLowerCase().trim();
+  const streamFilter = document.getElementById("vaultStreamFilter")?.value || "";
+
+  let filtered = allVaultClips;
+
+  if (streamFilter) {
+    filtered = filtered.filter(c => c.stream_id === streamFilter);
+  }
+
+  if (q) {
+    filtered = filtered.filter(c => {
+      const matchTitle = (c.title || "").toLowerCase().includes(q);
+      const matchReason = (c.virality_reason || "").toLowerCase().includes(q);
+      const matchHook = (c.social?.viral_hook_title || "").toLowerCase().includes(q);
+      const matchCaption = (c.social?.caption || "").toLowerCase().includes(q);
+      const matchTags = (c.social?.hashtags || "").toLowerCase().includes(q);
+      return matchTitle || matchReason || matchHook || matchCaption || matchTags;
+    });
+  }
+
+  renderVaultClips(filtered);
+}
+
+function renderVaultClips(clips) {
+  const container = document.getElementById("vaultClipsGrid");
+  const countEl = document.getElementById("vaultClipsCount");
+  if (countEl) countEl.textContent = clips.length;
+
+  if (!container) return;
+
+  if (!clips || clips.length === 0) {
+    container.innerHTML = `<div class="empty-state" style="grid-column: 1 / -1; padding: 2.5rem; text-align: center;">No matching clips found in database.</div>`;
+    return;
+  }
+
+  container.innerHTML = clips.map(c => `
+    <div class="clip-card" id="vault-card-${c.id}" style="display: flex; flex-direction: column;">
+      <video controls playsinline preload="metadata">
+        <source src="${c.video_url}" type="video/mp4">
+      </video>
+      <div class="clip-card-info" style="flex: 1; display: flex; flex-direction: column;">
+        <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 0.5rem;">
+          <div class="clip-card-title">${escapeHtml(c.title)}</div>
+          <span style="background: rgba(239, 68, 68, 0.2); color: #f87171; border: 1px solid rgba(239, 68, 68, 0.4); font-size: 0.72rem; font-weight: 700; padding: 0.15rem 0.4rem; border-radius: 4px; white-space: nowrap;">
+            🔥 ${c.viral_score}/100
+          </span>
+        </div>
+
+        <div style="font-size: 0.75rem; color: #94a3b8; margin: 0.3rem 0;">
+          ⏱️ [${formatSec(c.start)} - ${formatSec(c.end)}] (${(c.duration || 0).toFixed(1)}s) • ${c.file_size_mb ? c.file_size_mb.toFixed(1) + ' MB' : 'Ready'}
+        </div>
+
+        <!-- Social Media Drawer with 1-Click Copy -->
+        <div class="social-drawer">
+          <div style="font-weight: 700; color: #fbbf24; margin-bottom: 0.2rem;">
+            🎯 ${escapeHtml(c.social?.viral_hook_title || 'Viral Hook')}
+          </div>
+          <div style="color: #cbd5e1; font-size: 0.72rem; line-height: 1.3; max-height: 50px; overflow-y: auto;">
+            ${escapeHtml(c.social?.caption || '')}
+          </div>
+          <button class="copy-caption-btn" onclick="copySocialCaption(this, '${escapeHtml(c.social?.viral_hook_title || '')}', '${escapeHtml(c.social?.caption || '')}', '${escapeHtml(c.social?.hashtags || '')}')">
+            📋 Copy TikTok/Reels Caption
+          </button>
+        </div>
+
+        <div class="clip-card-actions" style="margin-top: 0.6rem; display: flex; gap: 0.4rem; align-items: center;">
+          <a href="${c.video_url}" download="clip_${c.id}.mp4" class="download-link" style="flex: 1; text-align: center;">
+            ⬇️ Download Clip
+          </a>
+          <button onclick="deleteVaultClip('${c.id}')" style="background: rgba(239, 68, 68, 0.15); color: #f87171; border: 1px solid rgba(239, 68, 68, 0.3); padding: 0.5rem 0.6rem; font-size: 0.78rem; border-radius: 6px;" title="Delete Clip">
+            🗑️
+          </button>
+        </div>
+
+        <!-- Next Part Continuation Row -->
+        <div class="next-part-actions" style="margin-top: 0.5rem;">
+          <span style="font-size: 0.7rem; color: #94a3b8; width: 100%;">Clip Next Part from Stream:</span>
+          <button class="next-part-btn" onclick="clipNextPart(${c.end}, 60, '${c.source_url || ''}', '${c.source_file || ''}', '${escapeHtml(c.title)}')">
+            ▶️ +1m
+          </button>
+          <button class="next-part-btn" onclick="clipNextPart(${c.end}, 120, '${c.source_url || ''}', '${c.source_file || ''}', '${escapeHtml(c.title)}')">
+            ▶️ +2m
+          </button>
+          <button class="next-part-btn" onclick="clipNextPart(${c.end}, 180, '${c.source_url || ''}', '${c.source_file || ''}', '${escapeHtml(c.title)}')">
+            ▶️ +3m
+          </button>
+        </div>
+      </div>
+    </div>
+  `).join("");
+}
+
+function copySocialCaption(btn, hook, caption, hashtags) {
+  const fullText = `${hook}\n\n${caption}\n\n${hashtags}`;
+  navigator.clipboard.writeText(fullText).then(() => {
+    const orig = btn.innerHTML;
+    btn.innerHTML = "✅ Copied to Clipboard!";
+    btn.style.background = "#059669";
+    btn.style.color = "#fff";
+    setTimeout(() => {
+      btn.innerHTML = orig;
+      btn.style.background = "";
+      btn.style.color = "";
+    }, 2000);
+  }).catch(() => {
+    alert("Caption:\n\n" + fullText);
+  });
+}
+
+async function deleteVaultClip(clipId) {
+  if (!confirm("Are you sure you want to remove this clip from the vault?")) return;
+  try {
+    const res = await fetch(`/api/vault/clips/${clipId}`, { method: "DELETE" });
+    if (res.ok) {
+      await loadVaultClips();
+      await loadClips();
+    } else {
+      alert("Failed to delete clip.");
+    }
+  } catch (err) {
+    alert("Error deleting clip: " + err.message);
+  }
+}
+
+async function mineMoreClipsFromActiveStream() {
+  const streamId = selectedVaultStreamId || (allVaultStreams.length > 0 ? allVaultStreams[0].id : null);
+  if (!streamId) {
+    alert("Please select a stream to mine more clips from.");
+    return;
+  }
+
+  const btn = document.getElementById("mineMoreBtn");
+  const origText = btn.innerHTML;
+  btn.innerHTML = "⚡ Mining Next Highlights (0 duplicates)...";
+  btn.disabled = true;
+
+  try {
+    const res = await fetch("/api/vault/mine-more", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ stream_id: streamId })
+    });
+    const data = await res.json();
+
+    if (!res.ok) {
+      alert("Error: " + (data.detail || "Failed to mine more highlights"));
+      return;
+    }
+
+    if (!data.next_highlights || data.next_highlights.length === 0) {
+      alert("All major audio peaks in this stream have already been clipped! Use AI Prompt Search below to find custom dialogue moments.");
+      return;
+    }
+
+    // Switch to Studio view, load the stream and highlights
+    switchMainView("studio");
+    activeVideo = data.stream;
+    if (data.stream.url) activeStreamUrl = data.stream.url;
+    
+    document.getElementById("activeVideoTitle").textContent = data.stream.title;
+    document.getElementById("activeVideoDuration").textContent = formatSec(data.stream.duration || 0);
+
+    renderHighlights(data.next_highlights);
+    selectHighlight(data.next_highlights[0].start, data.next_highlights[0].end, 0);
+
+    alert(`🎉 Mined ${data.next_highlights.length} brand new viral moments from '${data.stream.title}' without duplicates!`);
+  } catch (err) {
+    alert("Mining error: " + err.message);
+  } finally {
+    btn.innerHTML = origText;
+    btn.disabled = false;
+  }
+}
+
+async function searchDialoguePrompt() {
+  const query = (document.getElementById("aiPromptSearchInput")?.value || "").trim();
+  if (!query) {
+    alert("Please enter a dialogue or moment search term (e.g. 'mission', 'police chase', 'heist').");
+    return;
+  }
+
+  const loader = document.getElementById("aiPromptLoader");
+  const resultsGrid = document.getElementById("aiPromptResults");
+  loader.classList.remove("hidden");
+  resultsGrid.classList.add("hidden");
+
+  const streamId = selectedVaultStreamId || (allVaultStreams.length > 0 ? allVaultStreams[0].id : "");
+
+  try {
+    const res = await fetch("/api/vault/semantic-search", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ stream_id: streamId, query: query })
+    });
+    const data = await res.json();
+
+    loader.classList.add("hidden");
+    resultsGrid.classList.remove("hidden");
+
+    if (!data.results || data.results.length === 0) {
+      resultsGrid.innerHTML = `<div style="grid-column: 1 / -1; color: #94a3b8; font-size: 0.85rem; padding: 1rem;">No matching moments found for "${escapeHtml(query)}". Try another keyword!</div>`;
+      return;
+    }
+
+    resultsGrid.innerHTML = data.results.map(r => `
+      <div class="ai-moment-card" onclick="openPromptMomentInStudio(${r.start}, ${r.end}, '${escapeHtml(r.label || query)}')">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.3rem;">
+          <span style="font-size: 0.82rem; font-weight: 700; color: #60a5fa;">${escapeHtml(r.label || 'Moment')}</span>
+          <span style="background: rgba(59, 130, 246, 0.2); color: #93c5fd; font-size: 0.7rem; font-weight: 700; padding: 0.1rem 0.35rem; border-radius: 4px;">
+            🔥 ${r.score}% Match
+          </span>
+        </div>
+        <p style="font-size: 0.74rem; color: #cbd5e1; margin: 0.3rem 0; font-style: italic; line-height: 1.3;">
+          "${escapeHtml(r.text)}"
+        </p>
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 0.4rem; font-size: 0.72rem; color: #38bdf8;">
+          <span>⏱️ ${formatSec(r.start)} - ${formatSec(r.end)} (${(r.duration || 40).toFixed(0)}s)</span>
+          <span style="font-weight: 600;">✂️ Clip This Moment ➔</span>
+        </div>
+      </div>
+    `).join("");
+  } catch (err) {
+    loader.classList.add("hidden");
+    alert("Semantic search error: " + err.message);
+  }
+}
+
+function openPromptMomentInStudio(start, end, label) {
+  switchMainView("studio");
+  document.getElementById("startTimeInput").value = start.toFixed(1);
+  document.getElementById("endTimeInput").value = end.toFixed(1);
+  onTimingChange();
+
+  // If we have an archived stream, set it as active
+  if (allVaultStreams.length > 0 && !activeVideo) {
+    const s = selectedVaultStreamId ? allVaultStreams.find(x => x.id === selectedVaultStreamId) : allVaultStreams[0];
+    if (s) {
+      activeVideo = s;
+      if (s.original_url) activeStreamUrl = s.original_url;
+      document.getElementById("activeVideoTitle").textContent = s.title;
+      document.getElementById("activeVideoDuration").textContent = formatSec(s.duration || 0);
+    }
+  }
+
+  // Scroll to trimming controls
+  document.querySelector(".export-controls").scrollIntoView({ behavior: 'smooth' });
 }

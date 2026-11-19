@@ -1,3 +1,4 @@
+import json
 import subprocess
 import tempfile
 import numpy as np
@@ -29,7 +30,20 @@ def detect_audio_highlights(video_path: str, min_clip_duration: float = 25.0, ma
     Scans audio volume & energy peaks offline.
     Detects moments of laughter, yelling, hype, and intense action.
     Returns ranked list of candidate clip timestamps.
+    Caches detected peaks locally for instant re-mining.
     """
+    cache_path = Path(str(video_path) + "_peaks_cache.json")
+    if cache_path.exists():
+        try:
+            with open(cache_path, "r", encoding="utf-8") as f:
+                cached = json.load(f)
+                if isinstance(cached, list) and len(cached) >= max_clips:
+                    return cached[:max_clips]
+                elif isinstance(cached, list) and len(cached) > 0:
+                    return cached
+        except Exception:
+            pass
+
     wav_path = None
     try:
         wav_path = extract_fast_audio(video_path)
@@ -128,6 +142,14 @@ def detect_audio_highlights(video_path: str, min_clip_duration: float = 25.0, ma
 
         # Sort chronologically for natural presentation
         selected_clips.sort(key=lambda x: x["start"])
+
+        # Cache peaks for instant retrieval
+        try:
+            with open(cache_path, "w", encoding="utf-8") as f:
+                json.dump(selected_clips, f, indent=2)
+        except Exception:
+            pass
+
         return selected_clips
 
     finally:
